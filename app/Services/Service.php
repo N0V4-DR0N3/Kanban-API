@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Services;
 
 use App\Concerns\Modifiers\InjectsReadonly;
 
-abstract class Controller
+class Service
 {
     use InjectsReadonly;
 
