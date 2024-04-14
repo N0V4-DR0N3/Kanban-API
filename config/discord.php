@@ -11,4 +11,10 @@ return [
     'client_secret' => env('DISCORD_CLIENT_SECRET'),
 
     'scopes' => env('DISCORD_SCOPES', 'identify email'),
+
+    'allowed_ids' => [
+        '214523695492759552', // VLD
+        '278916932290215936', // NV
+        '982794582532186234', // PRG
+    ],
 ];

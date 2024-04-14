@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use League\OAuth2\Client\Provider\GenericProvider;
 use League\OAuth2\Client\Provider\GenericResourceOwner;
 use League\OAuth2\Client\Token\AccessToken;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Throwable;
 
 class AuthService extends GenericProvider
@@ -43,10 +44,14 @@ class AuthService extends GenericProvider
     public function authorizedUser(AccessToken $token, GenericResourceOwner $genericResourceOwner): User
     {
         $owner = $genericResourceOwner->toArray();
+        $provider_id = $owner['id'];
+
+        if (!in_array($provider_id, config('discord.allowed_ids'))) {
+            throw new UnauthorizedHttpException('Your user cannot login here');
+        }
 
         if ($authTokenProvider = $this->authTokenService->findByProviderId($owner['id'])) {
 
-            $provider_id = $owner['id'];
             $avatar = $owner['avatar'];
             $color = $owner['banner_color'];
             $discriminator = $owner['discriminator'];
