@@ -1,0 +1,38 @@
+<?php
+
+namespace {{ namespace }};
+
+use {{ namespacedModel }};
+use App\Repositories\Repository;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * @extends Repository<{{ model }}>
+ * @phpstan-extends Repository<{{ model }}>
+ */
+class {{ class }} extends Repository
+{
+    /** @var {{ model }} */
+    protected Model $model;
+
+    public function __construct()
+    {
+        parent::__construct(new {{ model }});
+    }
+
+    public function create(array $data): {{ model }}
+    {
+        return $this->_create($data);
+    }
+
+    public function update({{ model }} ${{ modelVariable }}, array $data): {{ model }}
+    {
+        return $this->_update(${{ modelVariable }}, $data);
+    }
+
+    public function delete({{ model }} ${{ modelVariable }}): bool
+    {
+        return $this->_delete(${{ modelVariable }});
+    }
+}

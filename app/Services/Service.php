@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Concerns\Modifiers\InjectsReadonly;
 
-class Service
+/**
+ * @mixin InjectsReadonly
+ */
+abstract class Service
 {
     use InjectsReadonly;
 

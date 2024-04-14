@@ -1,0 +1,19 @@
+--- /dev/null
++++ ../src/Support/Factories/DataTypeFactory.php
+@@ -12,6 +12,7 @@
+ use ReflectionProperty;
+ use ReflectionType;
+ use ReflectionUnionType;
++use App\Data\_;
+ use Spatie\LaravelData\Attributes\DataCollectionOf;
+ use Spatie\LaravelData\Enums\DataTypeKind;
+ use Spatie\LaravelData\Exceptions\CannotFindDataClass;
+@@ -450,7 +451,7 @@
+             /** @var ReflectionNamedType $reflectionSubType */
+             $name = $reflectionSubType->getName();
+ 
+-            if ($name === Optional::class) {
++            if ($name === Optional::class || $name === _::class) {
+                 $isOptional = true;
+ 
+                 continue;

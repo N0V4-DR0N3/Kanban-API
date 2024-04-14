@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Enums\Concerns\Coerceable;
+use App\Enums\Concerns\Functions;
+use App\Enums\Concerns\Invokable;
+
+enum {{ class }}: string
+{
+    use Coerceable,
+        Functions,
+        Invokable;
+
+    //
+}

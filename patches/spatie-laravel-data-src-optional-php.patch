@@ -1,0 +1,76 @@
+--- /dev/null
++++ ../src/Optional.php
+@@ -8,4 +8,73 @@
+     {
+         return new self();
+     }
++
++    public static function is(mixed $value): bool
++    {
++        return $value instanceof self;
++    }
++
++    public static function ok(mixed $value): bool
++    {
++        return !self::is($value);
++    }
++
++    /**
++     * @template TType
++     *
++     * @param TType|static $value
++     * @param TType $default
++     *
++     * @return TType
++     */
++    public static function or(mixed $value, mixed $default): mixed
++    {
++        if (self::is($value)) {
++            return $default;
++        }
++
++        return $value;
++    }
++
++    /**
++     * @template TType
++     *
++     * @param TType|static $value
++     *
++     * @return ?TType
++     * @phpstan-return ($value is static ? null : TType)
++     */
++    public static function orNull(mixed $value)
++    {
++        return self::or($value, null);
++    }
++
++    /**
++     * @param array<string|int, mixed> $values
++     *
++     * @return array<string|int, mixed>
++     */
++    public static function filter(array $values): array
++    {
++        return array_filter(
++            array: $values,
++            callback: self::ok(...),
++        );
++    }
++
++    public function __get(string $name): null
++    {
++        return null;
++    }
++
++    /**
++     * @param string $name
++     * @param string[] $arguments
++     *
++     * @return null
++     */
++    public function __call(string $name, array $arguments): null
++    {
++        return null;
++    }
+ }
