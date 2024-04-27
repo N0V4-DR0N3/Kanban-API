@@ -2,11 +2,11 @@
 
 namespace App\Enums\Auth;
 
-use App\Enums\Concerns\Collectable;
+//use App\Enums\Concerns\Collectable;
 
 enum AuthProviders: string
 {
-    use Collectable;
+//    use Collectable;
 
     case DISCORD = 'discord';
     case PASSWORD = 'password';
