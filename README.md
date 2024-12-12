@@ -1,5 +1,3 @@
-Here's the improved README content you can easily copy:
-
 # Kanban API
 
 A modern Kanban board API built with Laravel 11.
