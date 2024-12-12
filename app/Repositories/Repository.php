@@ -2,10 +2,14 @@
 
 namespace App\Repositories;
 
+use App\Data\_;
+use App\Data\DateValue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as BaseCollection;
 use Throwable;
 
 /**
@@ -14,12 +18,12 @@ use Throwable;
 abstract class Repository
 {
     /**
-     * @var Model
+     * @var TModel
      */
     protected Model $model;
 
     /**
-     * @param Model $model
+     * @param TModel $model
      */
     public function __construct($model)
     {
@@ -31,8 +35,7 @@ abstract class Repository
      */
     public function query(): Builder
     {
-        /** @var Builder<TModel> */
-        return $this->model::query();
+        return $this->model->query();
     }
 
     /**
@@ -48,19 +51,19 @@ abstract class Repository
      *
      * @phpstan-param array<string, mixed> $data
      *
-     * @return Model
+     * @return TModel
      *
      * @throws Throwable
      */
     protected function _create(array $data): Model
     {
-        return $this->model->create($data);
+        return $this->model->create(_::filter($data));
     }
 
     /**
      * @param string $id
      *
-     * @return ?Model
+     * @return ?TModel
      */
     protected function _find(string $id): ?Model
     {
@@ -70,7 +73,7 @@ abstract class Repository
     /**
      * @param string $id
      *
-     * @return Model
+     * @return TModel
      *
      * @throws ModelNotFoundException
      */
@@ -80,43 +83,24 @@ abstract class Repository
     }
 
     /**
-     * @param Model $model
+     * @param TModel $model
      * @param array $data
      *
      * @phpstan-param array<string, mixed> $data
      *
-     * @return Model|false
+     * @return TModel|false
      *
      * @throws Throwable
      */
     protected function _update(Model $model, array $data): Model|false
     {
-        if (!$model->updateOrFail($data)) {
-            return false;
-        }
+        $model->updateOrFail(_::filter($data));
 
         return $model;
     }
 
     /**
-     * @param Model $model
-     * @param array $data
-     *
-     * @phpstan-param array<string, mixed> $data
-     *
-     * @return Model
-     *
-     * @throws Throwable
-     */
-    protected function _updateOrFail(Model $model, array $data): Model
-    {
-        $model->updateOrFail($data);
-
-        return $model;
-    }
-
-    /**
-     * @param Model $model
+     * @param TModel $model
      *
      * @return bool
      */
@@ -126,12 +110,64 @@ abstract class Repository
     }
 
     /**
-     * @param Model $model
+     * @param TModel $model
      *
      * @return bool
      */
     protected function _forceDelete(Model $model): bool
     {
         return !!$model->forceDelete();
+    }
+
+    /**
+     * @param TModel $model
+     *
+     * @return bool
+     */
+    protected function _restore(Model $model): bool
+    {
+        if (!method_exists($model, 'restore')) {
+            return true;
+        }
+
+        return $model->restore();
+    }
+
+    /**
+     * @param Collection<array-key, TModel> $models
+     *
+     * @return BaseCollection<int, DateValue>
+     */
+    protected function _reduceDateValues(Collection $models): BaseCollection
+    {
+        return $models->reduce(
+            initial: collect(),
+            callback: static function (BaseCollection $acc, Model $v, $k) {
+                $date = $v->getAttribute('date');
+
+                return $acc->put($date, DateValue::fromModel($v));
+            },
+        );
+    }
+
+    /**
+     * @param Collection<int|string, Model> $models
+     *
+     * @return BaseCollection<int, DateValue>
+     */
+    protected function _reduceCumulativeDateValues(Collection $models): BaseCollection
+    {
+        return $models->reduce(
+            initial: collect(),
+            callback: static function (BaseCollection $acc, Model $v, $k) {
+                $date = $v->getAttribute('date');
+                $value = $v->getAttribute('value');
+
+                $data = $acc->getOrPut($date, new DateValue(date: Carbon::parse($date)));
+                $data->value += $value;
+
+                return $acc;
+            },
+        )->values();
     }
 }

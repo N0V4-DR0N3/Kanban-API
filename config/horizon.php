@@ -56,7 +56,7 @@ return [
 
     'prefix' => env(
         'HORIZON_PREFIX',
-        Str::slug(env('APP_NAME', 'laravel'), '_').'_horizon:'
+        Str::slug(env('APP_NAME', 'laravel'), '_').'_horizon:',
     ),
 
     /*
@@ -166,7 +166,7 @@ return [
     |
     */
 
-    'memory_limit' => 64,
+    'memory_limit' => 512,
 
     /*
     |--------------------------------------------------------------------------
@@ -180,34 +180,109 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        'supervisor-low' => [
             'connection' => 'redis',
-            'queue' => ['default'],
-            'balance' => 'auto',
+            'queue' => ['default', 'low'],
+
             'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
+            'balance' => 'auto',
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+
+            'memory' => 128,
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
             'maxTime' => 0,
             'maxJobs' => 0,
-            'memory' => 128,
+
             'tries' => 1,
-            'timeout' => 60,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
+        'supervisor-medium' => [
+            'connection' => 'redis',
+            'queue' => ['medium'],
+
+            'autoScalingStrategy' => 'time',
+            'balance' => 'auto',
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+
+            'memory' => 128,
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+
+            'tries' => 1,
+            'timeout' => 300,
+            'nice' => 0,
+        ],
+        'supervisor-high' => [
+            'connection' => 'redis',
+            'queue' => ['high', 'customers'],
+
+            'autoScalingStrategy' => 'time',
+            'balance' => 'auto',
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+
+            'memory' => 128,
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+
+            'tries' => 1,
+            'timeout' => 300,
             'nice' => 0,
         ],
     ],
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
-                'maxProcesses' => 10,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
+            'supervisor-low' => [
+            ],
+            'supervisor-medium' => [
+                'memory' => 256,
+                'processes' => 2,
+                'maxProcesses' => 4,
+            ],
+            'supervisor-high' => [
+                'memory' => 256,
+                'processes' => 2,
+                'maxProcesses' => 6,
+            ],
+        ],
+
+        'development' => [
+            'supervisor-low' => [
+            ],
+            'supervisor-medium' => [
+                'memory' => 256,
+                'processes' => 2,
+                'maxProcesses' => 4,
+            ],
+            'supervisor-high' => [
+                'memory' => 256,
+                'processes' => 2,
+                'maxProcesses' => 6,
             ],
         ],
 
         'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
+            'supervisor-low' => [
+                'maxProcesses' => 1,
+            ],
+            'supervisor-medium' => [
+                'processes' => 1,
+                'maxProcesses' => 1,
+            ],
+            'supervisor-high' => [
+                'processes' => 1,
+                'maxProcesses' => 1,
             ],
         ],
     ],
+
 ];

@@ -12,6 +12,11 @@ use Illuminate\Database\Eloquent\Model as BaseModel;
  */
 abstract class Model extends BaseModel
 {
-    use MockableChanges;
-    use MockableSave;
+    use MockableChanges, MockableSave;
+
+    protected $hidden = [
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
 }

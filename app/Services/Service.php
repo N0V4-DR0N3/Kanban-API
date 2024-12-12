@@ -2,17 +2,20 @@
 
 namespace App\Services;
 
-use App\Concerns\Modifiers\InjectsReadonly;
+use App\Traits\InjectsReadonly;
 
-/**
- * @mixin InjectsReadonly
- */
 abstract class Service
 {
     use InjectsReadonly;
 
-    public function __construct()
+    final public function __construct()
     {
         $this->injectReadonly();
+        $this->__setup();
+    }
+
+    protected function __setup(): void
+    {
+        //
     }
 }

@@ -1,6 +1,6 @@
 --- /dev/null
 +++ ../src/Optional.php
-@@ -8,4 +8,73 @@
+@@ -8,4 +8,91 @@
      {
          return new self();
      }
@@ -56,6 +56,24 @@
 +            array: $values,
 +            callback: self::ok(...),
 +        );
++    }
++
++    /**
++     * @template TType
++     * @template TReturn
++     *
++     * @param TType|static $value
++     * @param callable(TType): TReturn $fn
++     *
++     * @return ?TReturn
++     */
++    public static function when(mixed $value, callable $fn): mixed
++    {
++        if (self::is($value)) {
++            return null;
++        }
++
++        return $fn($value);
 +    }
 +
 +    public function __get(string $name): null

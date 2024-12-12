@@ -17,57 +17,48 @@ use Illuminate\Support\Facades\Pipeline;
  * @template TModel of Model
  * @template TBuilder of Builder<TModel>|Relation<TModel>
  *
- * @phpstan-type Pair array{key: string, fn: Closure}
- *
  * @phpstan-type RawCallback Closure(TBuilder $query, Request $req): mixed
  * @phpstan-type FilledCallback Closure(TBuilder $query, mixed $v, Request $req): mixed
- * @phpstan-type StringCallback Closure(TBuilder $query, ?string $v): mixed
- * @phpstan-type NumberCallback Closure(TBuilder $query, ?float $v): mixed
- * @phpstan-type BooleanCallback Closure(TBuilder $query, mixed $v): mixed
- * @phpstan-type DateCallback Closure(TBuilder $query, mixed $v): mixed
  *
  * @phpstan-type RawPair array{key: string, fn: RawCallback}
- * @phpstan-type FilledPair array{key: string, fn: FilledCallback}
- * @phpstan-type StringPair array{key: string, fn: StringCallback}
- * @phpstan-type NumberPair array{key: string, fn: NumberCallback}
- * @phpstan-type BooleanPair array{key: string, fn: BooleanCallback}
- * @phpstan-type DatePair array{key: string, fn: DateCallback}
+ *
+ * @phpstan-type RawPairCollection array<string, RawPair>
  */
 final class RequestQueryFilter
 {
     /**
-     * @var array<string, StringPair>
+     * @var RawPairCollection
      */
     protected array $strings = [];
     /**
-     * @var array<string, NumberPair>
+     * @var RawPairCollection
      */
     protected array $numbers = [];
     /**
-     * @var array<string, BooleanPair>
+     * @var RawPairCollection
      */
     protected array $booleans = [];
     /**
-     * @var array<string, DatePair>
+     * @var RawPairCollection
      */
     protected array $dates = [];
 
     /**
-     * @var array<string, RawPair>
+     * @var RawPairCollection
      */
     protected array $raws = [];
     /**
-     * @var array<string, FilledPair>
+     * @var RawPairCollection
      */
     protected array $wheres = [];
     /**
-     * @var array<string, RawPair>
+     * @var RawPairCollection
      */
     protected array $orders = [];
 
     /**
      * @param Request $request
-     * @param Builder $query
+     * @param TBuilder $query
      */
     function __construct(
         protected Request $request,
@@ -80,7 +71,7 @@ final class RequestQueryFilter
      * @template TCBuilder of Builder<TCModel>|Relation<TCModel>
      *
      * @param Request $request
-     * @param Builder $query
+     * @param TCBuilder $query
      *
      * @return self<TCModel, TCBuilder>
      */
@@ -90,28 +81,31 @@ final class RequestQueryFilter
     }
 
     /**
-     * @return Builder
+     * @return TBuilder
      */
     public function apply(): BuilderContract
     {
-        $pipeline = Pipeline::send($this->query);
+        $this->query->where(function (BuilderContract $query) {
+            $this->pipeCollections(
+                query: $query,
+                scoped: true,
+                collections: [$this->strings, $this->numbers, $this->booleans, $this->dates, $this->wheres],
+            );
+        });
 
-        collect([
-            $this->strings, $this->numbers, $this->booleans, $this->dates,
-            $this->wheres, $this->orders, $this->raws,
-        ])->map(
-            $this->array2pipeable(...),
-        )->each(
-            $pipeline->pipe(...),
+        $this->pipeCollections(
+            query: $this->query,
+            scoped: false,
+            collections: [$this->orders, $this->raws],
         );
 
-        return $pipeline->thenReturn();
+        return $this->query;
     }
 
     /**
-     * @param array<string, RawPair> $arr
+     * @param RawPairCollection $arr
      * @param string $key
-     * @param Closure $fn
+     * @param RawCallback $fn
      *
      * @return $this
      */
@@ -123,9 +117,9 @@ final class RequestQueryFilter
     }
 
     /**
-     * @param array<string, FilledPair> $arr
+     * @param RawPairCollection $arr
      * @param string $key
-     * @param Closure $fn
+     * @param FilledCallback $fn
      *
      * @return $this
      */
@@ -137,11 +131,9 @@ final class RequestQueryFilter
             }
 
             $v = $req->input($key);
-            $v = $v instanceof BackedEnum ? $v->value : $v;
+            $v instanceof BackedEnum && ($v = $v->value);
 
-            $query->where(static fn (BuilderContract $q) => $q
-                ->where(static fn (BuilderContract $q) => $fn($query, $v, $req)),
-            );
+            $fn($query, $v, $req);
         };
 
         return $this->put($arr, $key, $callback);
@@ -149,7 +141,7 @@ final class RequestQueryFilter
 
     /**
      * @param string $key
-     * @param Closure $fn
+     * @param RawCallback $fn
      *
      * @return $this
      */
@@ -160,7 +152,7 @@ final class RequestQueryFilter
 
     /**
      * @param string $key
-     * @param Closure $fn
+     * @param FilledCallback $fn
      *
      * @return $this
      */
@@ -180,10 +172,10 @@ final class RequestQueryFilter
      */
     public function str(string $column, ?string $key = null, MathEquality $equality = MathEquality::EQ): self
     {
-        $key ??= $column;
+        $key ??= str($column)->afterLast('.')->toString();
 
         $fn = static function (BuilderContract $query, ?string $v) use ($column, $equality) {
-            $query->where($column, $equality(), $v);
+            $query->where($column, $equality->value, $v);
         };
 
         return $this->putFilled($this->strings, $key, $fn);
@@ -200,13 +192,29 @@ final class RequestQueryFilter
      */
     public function num(string $column, ?string $key = null, MathEquality $equality = MathEquality::EQ): self
     {
-        $key ??= $column;
+        $key ??= str($column)->afterLast('.')->toString();
 
         $fn = static function (BuilderContract $query, ?float $v) use ($column, $equality) {
-            $query->where($column, $equality(), $v);
+            $query->where($column, $equality->value, $v);
         };
 
         return $this->putFilled($this->numbers, $key, $fn);
+    }
+
+    /**
+     * @param string $column
+     * @param string $minKey
+     * @param string $maxKey
+     *
+     * @phpstan-param model-property<TModel> $column
+     *
+     * @return $this
+     */
+    public function numRange(string $column, string $minKey, string $maxKey): self
+    {
+        return $this
+            ->num($column, $minKey, MathEquality::GTE)
+            ->num($column, $maxKey, MathEquality::LTE);
     }
 
     /**
@@ -220,12 +228,12 @@ final class RequestQueryFilter
      */
     public function bool(string $column, ?string $key = null, MathEquality $equality = MathEquality::EQ): self
     {
-        $key ??= $column;
+        $key ??= str($column)->afterLast('.')->toString();
 
         $fn = static function (BuilderContract $query, $v) use ($column, $equality) {
             $v = filter_var($v, FILTER_VALIDATE_BOOLEAN);
 
-            $query->where($column, $equality(), $v);
+            $query->where($column, $equality->value, $v);
         };
 
         return $this->putFilled($this->booleans, $key, $fn);
@@ -242,12 +250,12 @@ final class RequestQueryFilter
      */
     public function date(string $column, ?string $key = null, MathEquality $equality = MathEquality::EQ): self
     {
-        $key ??= $column;
+        $key ??= str($column)->afterLast('.')->toString();
 
         $fn = static function (BuilderContract $query, $v) use ($column, $equality) {
             $v = $v ? Carbon::parse($v) : null;
 
-            $query->where($column, $equality(), $v);
+            $query->where($column, $equality->value, $v);
         };
 
         return $this->putFilled($this->dates, $key, $fn);
@@ -278,7 +286,19 @@ final class RequestQueryFilter
      */
     public function ordered(string $key = 'order_by', string $dirKey = 'order_direction', string $dirDefault = 'asc'): self
     {
-        $fn = static function (BuilderContract $query, string $v, Request $req) use ($dirKey, $dirDefault) {
+        $model = $this->query->getModel();
+
+        $searchable = [
+            ...$model->getFillable(),
+            $model->getCreatedAtColumn(), $model->getUpdatedAtColumn(),
+            method_exists($model, 'getDeletedAtColumn') ? $model->getDeletedAtColumn() : '',
+        ];
+
+        $fn = static function (BuilderContract $query, string $v, Request $req) use ($searchable, $dirKey, $dirDefault) {
+            if (!in_array($v, $searchable)) {
+                return;
+            }
+
             $direction = $req->input($dirKey, $dirDefault);
 
             $query->orderBy($v, $direction);
@@ -288,26 +308,96 @@ final class RequestQueryFilter
     }
 
     /**
-     * @param array<string, array{fn: RawCallback}> $arr
-     *
-     * @return Closure
+     * @return $this
      */
-    protected function array2pipeable(array $arr): array
+    public function strCommas(string $column, ?string $key = null): self
     {
-        return collect($arr)->pluck('fn')->map($this->callback2pipe(...))->toArray();
+        $key ??= str($column)->afterLast('.')->toString();
+
+        return $this->where($key, function (Builder $query, ?string $v) use ($column) {
+            $values = explode(',', $v ?? '');
+
+            if (count($values) > 1) {
+                $query->whereIn($column, $values);
+            }
+            else if ($id = $values[0]) {
+                $query->where($column, $id);
+            }
+        });
     }
 
     /**
-     * @param Closure $fn
+     * @return $this
+     */
+    public function id(?string $column = null, ?string $key = null): self
+    {
+        $column ??= $this->query->getModel()->getQualifiedKeyName();
+        $key ??= str($column)->afterLast('.')->toString();
+
+        return $this->strCommas($column, $key);
+    }
+
+    /**
+     * @return $this
+     */
+    public function enum(string $column, ?string $key = null): self
+    {
+        return $this->strCommas($column, $key);
+    }
+
+    /**
+     * @param array<string, array{fn: RawCallback}> $arr
+     * @param bool $scoped
+     *
+     * @return list<RawCallback>
+     */
+    protected function array2pipeable(array $arr, bool $scoped): array
+    {
+        return collect(
+            value: $arr,
+        )->pluck(
+            value: 'fn',
+        )->map(
+            callback: fn (Closure $v) => $this->callback2pipeable($v, scoped: $scoped),
+        )->toArray();
+    }
+
+    /**
+     * @param RawCallback $fn
+     * @param bool $scoped
      *
      * @return Closure(BuilderContract $query, Closure $next): mixed
      */
-    protected function callback2pipe(Closure $fn): Closure
+    protected function callback2pipeable(Closure $fn, bool $scoped): Closure
     {
-        return function (BuilderContract $query, Closure $next) use ($fn) {
-            $fn($query, $this->request);
+        return function (BuilderContract $query, Closure $next) use ($fn, $scoped) {
+            !$scoped
+                ? $fn($query, $this->request)
+                : $query->where(fn (BuilderContract $query) => $fn($query, $this->request));
 
             return $next($query);
         };
+    }
+
+    /**
+     * @param BuilderContract $query
+     * @param bool $scoped
+     * @param list<RawPairCollection> $collections
+     *
+     * @return BuilderContract
+     */
+    protected function pipeCollections(BuilderContract $query, bool $scoped, iterable $collections): BuilderContract
+    {
+        $pipeline = Pipeline::send($query);
+
+        collect(
+            value: $collections,
+        )->map(
+            callback: fn (array $v) => $this->array2pipeable($v, scoped: $scoped),
+        )->each(
+            callback: $pipeline->pipe(...),
+        );
+
+        return $pipeline->thenReturn();
     }
 }

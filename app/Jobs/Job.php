@@ -2,28 +2,24 @@
 
 namespace App\Jobs;
 
-use App\Concerns\Modifiers\InjectsReadonly;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Traits\InjectsReadonly;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
 
-/**
- * @mixin InjectsReadonly
- * @mixin Dispatchable
- * @mixin InteractsWithQueue
- * @mixin Queueable
- */
-abstract class Job implements ShouldQueue
+abstract class Job
 {
-    use InjectsReadonly;
     use Dispatchable;
-    use InteractsWithQueue;
-    use Queueable;
+    use InjectsReadonly;
 
-    public function handle(): void
+    protected function setup(): void
+    {
+        //
+    }
+
+    final public function handle(): void
     {
         $this->injectReadonly();
+        $this->setup();
+
         if (method_exists($this, 'run')) {
             $this->run();
         }
