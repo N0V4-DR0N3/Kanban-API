@@ -1,0 +1,51 @@
+services:
+  # Redis
+  kb-redis:
+    image: redis:7.2.1-alpine
+    container_name: kb-redis
+    hostname: kb-redis
+    ports:
+      - "6379:6379"
+    command: [ "redis-server", "--requirepass", "batatafrita" ]
+    networks:
+      kb-network:
+        ipv4_address: 192.168.23.3
+  kb-mysql:
+    image: mysql:8.1.0
+    container_name: kb-mysql
+    hostname: kb-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=batatafrita
+      - MYSQL_DATABASE=admin
+      - MYSQL_PASSWORD=batatafrita
+    volumes:
+      - ./mysql:/var/lib/mysql
+    networks:
+      kb-network:
+        ipv4_address: 192.168.23.4
+  kb-api:
+    build: "./api"
+    container_name: kb-api
+    hostname: kb-api
+    ports:
+      - "80:80"
+    environment:
+      - PSYSH_DIR=/var/www/html
+    volumes:
+      - ./api:/var/www/html
+      - ./api/.env:/var/www/html/.env
+    depends_on:
+      - kb-mysql
+      - kb-redis
+    networks:
+      kb-network:
+        ipv4_address: 192.168.23.5
+networks:
+  kb-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.23.0/24
