@@ -21,7 +21,7 @@ class TaskResource extends JsonResource
             'description' => $this->description,
 
             'status' => $this->status,
-            'limit_date' => $this->limit_date,
+            'limit_date' => $this->limit_date?->format('Y-m-d'),
 
             'responsibles' => TaskUserResource::collection($this->responsibles),
 

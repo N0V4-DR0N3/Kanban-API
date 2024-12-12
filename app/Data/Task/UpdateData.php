@@ -8,6 +8,8 @@ use App\Enums\Task\TaskStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Spatie\LaravelData\Attributes\WithCast;
+use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
 use Spatie\LaravelData\Data;
 
 final class UpdateData extends Data
@@ -19,6 +21,8 @@ final class UpdateData extends Data
         public _|string $description,
 
         public _|TaskStatus $status,
+
+        #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public _|Carbon $limit_date,
 
         public _|Collection $responsibles

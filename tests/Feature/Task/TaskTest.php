@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Task;
 
+use App\Enums\Task\TaskStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -36,6 +37,34 @@ class TaskTest extends TestCase
         ];
     }
 
+    public function test_show_not_authenticated(): void
+    {
+        $response = $this->getJson("/api/tasks/1");
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_show_not_exists(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $response = $this->getJson("/api/tasks/999");
+
+        $response->assertNotFound();
+    }
+
+    public function test_show_valid_data(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->getJson("/api/tasks/{$task}");
+
+        $response->assertOk()
+            ->assertJsonStructure(['data' => ['id', 'title', 'description', 'limit_date', 'responsibles']]);
+    }
+
     public function test_create_not_authenticated(): void
     {
         $response = $this->postJson('/api/tasks', $this->data);
@@ -61,16 +90,6 @@ class TaskTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['title']);
-    }
-
-    public function test_create_description_opcional(): void
-    {
-        BasePassport::actingAs(user: $this->user);
-
-        $response = $this->postJson('/api/tasks', array_merge($this->data, ['description' => '']));
-
-        $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['description']);
     }
 
     public function test_create_limit_date_required(): void
@@ -111,5 +130,167 @@ class TaskTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['responsibles.0']);
+    }
+
+    public function test_update_not_authenticated(): void
+    {
+        $response = $this->patchJson("/api/tasks/1", $this->data);
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_update_not_exists(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $response = $this->patchJson("/api/tasks/999", $this->data);
+
+        $response->assertNotFound();
+    }
+
+    public function test_update_fake(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", $this->data);
+
+        $response->assertOk()
+            ->assertJsonStructure(['data' => ['id', 'title', 'description', 'limit_date', 'responsibles']]);
+    }
+
+    public function test_update_title(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['title' => 'New Title']);
+
+        $response->assertOk()
+            ->assertJsonFragment(['title' => 'New Title']);
+    }
+
+    public function test_update_description(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['description' => 'New Description']);
+
+        $response->assertOk()
+            ->assertJsonFragment(['description' => 'New Description']);
+    }
+
+    public function test_update_limit_date(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['limit_date' => '2025-01-02']);
+
+        $response->assertOk()
+            ->assertJsonFragment(['limit_date' => '2025-01-02']);
+    }
+
+    public function test_update_responsibles(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $responsible = User::factory()->create();
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['responsibles' => [$responsible->id]]);
+
+        $response->assertOk();
+    }
+
+    public function test_update_status_to_pending(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['status' => TaskStatus::PENDING->value]);
+
+        $response->assertOk()
+            ->assertJsonFragment(['status' => TaskStatus::PENDING->value]);
+    }
+
+    public function test_update_status_to_in_progress(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['status' => TaskStatus::IN_PROGRESS->value]);
+
+        $response->assertOk()
+            ->assertJsonFragment(['status' => TaskStatus::IN_PROGRESS->value]);
+    }
+
+    public function test_update_status_to_done(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['status' => TaskStatus::DONE->value]);
+
+        $response->assertOk()
+            ->assertJsonFragment(['status' => TaskStatus::DONE->value]);
+    }
+
+    public function test_update_status_to_archived(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->patchJson("/api/tasks/{$task}", ['status' => TaskStatus::ARCHIVED->value]);
+
+        $response->assertOk()
+            ->assertJsonFragment(['status' => TaskStatus::ARCHIVED->value]);
+    }
+
+    public function test_delete_not_authenticated(): void
+    {
+        $response = $this->deleteJson("/api/tasks/1");
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_delete_not_exists(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $response = $this->deleteJson("/api/tasks/999");
+
+        $response->assertNotFound();
+    }
+
+    public function test_delete_valid_data(): void
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $task = $this->createTask();
+
+        $response = $this->deleteJson("/api/tasks/{$task}");
+
+        $response->assertOk()
+            ->assertJsonStructure(['data' => ['id', 'title', 'description', 'limit_date', 'responsibles']]);
+    }
+
+    private function createTask(): string
+    {
+        BasePassport::actingAs(user: $this->user);
+
+        $response = $this->postJson('/api/tasks', $this->data);
+
+        return $response->json('data.id');
     }
 }
